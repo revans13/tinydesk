@@ -316,19 +316,12 @@ export default function App() {
     setSelConcert(null); setView("concerts");
   };
 
-  // ── Blast (eligible only) ───────────────────
-  const getBlastMsg = (c) => `🎵 Tiny Desk Alert!\n\n${c.artist} is performing at NPR's Tiny Desk on ${fmtDate(c.date)}!\n\nI have 2 guest spots — first come, first served. Text me back to claim yours!\n\nFirst 2 replies get confirmed, #3 is the alternate.`;
+  // ── Blast (eligible only, individual texts) ──
+  const getBlastMsg = (c, name) => `Hey ${name}! 🎵 Tiny Desk Alert!\n\n${c.artist} is performing at NPR's Tiny Desk on ${fmtDate(c.date)}!\n\nI have 2 guest spots — first come, first served. Text me back to claim yours!\n\nFirst 2 replies get confirmed, #3 is the alternate.`;
+  const getGenericBlastMsg = (c) => `🎵 Tiny Desk Alert!\n\n${c.artist} is performing at NPR's Tiny Desk on ${fmtDate(c.date)}!\n\nI have 2 guest spots — first come, first served. Text me back to claim yours!\n\nFirst 2 replies get confirmed, #3 is the alternate.`;
 
-  const getSmsUrl = (c) => {
-    const eligible = getEligible();
-    const phones = eligible.filter((g) => g.phone).map((g) => g.phone).join(",");
-    return `sms:${phones}?body=${encodeURIComponent(getBlastMsg(c))}`;
-  };
-  const getEmailUrl = (c) => {
-    const eligible = getEligible();
-    const emails = eligible.filter((g) => g.email).map((g) => g.email).join(",");
-    return `mailto:${emails}?subject=${encodeURIComponent(`Tiny Desk: ${c.artist} — ${fmtDate(c.date)}`)}&body=${encodeURIComponent(getBlastMsg(c))}`;
-  };
+  const getIndividualSmsUrl = (phone, msg) => `sms:${phone}&body=${encodeURIComponent(msg)}`;
+  const getIndividualEmailUrl = (email, c, msg) => `mailto:${email}?subject=${encodeURIComponent(`Tiny Desk: ${c.artist} — ${fmtDate(c.date)}`)}&body=${encodeURIComponent(msg)}`;
 
   // ── Derived ─────────────────────────────────
   const upcoming = state.concerts.filter((c) => c.status === "upcoming").sort((a, b) => new Date(a.date) - new Date(b.date));
@@ -626,36 +619,66 @@ export default function App() {
           { key: "notes", label: "Notes" },
         ]} onSubmit={addConcert} onClose={() => setModal(null)} submitLabel="Add Concert" />}
 
-        {modal === "blast" && blastTarget && (
+        {modal === "blast" && blastTarget && (() => {
+          const markBlasted = () => setState((s) => ({ ...s, concerts: s.concerts.map((c) => c.id === blastTarget.id ? { ...c, blasted: true } : c) }));
+          const eligibleWithContact = eligible.filter((g) => g.phone || g.email);
+          return (
           <Modal onClose={() => { setModal(null); setBlastTarget(null); }}>
             <h3 style={{ fontFamily: F.display, fontSize: 17, fontWeight: 700, margin: "0 0 4px" }}>Blast to Eligible</h3>
-            <p style={{ fontSize: 12, color: P.muted, margin: "0 0 3px" }}>
-              Sending to {eligible.length} eligible guest{eligible.length !== 1 ? "s" : ""} only.
+            <p style={{ fontSize: 12, color: P.muted, margin: "0 0 12px" }}>
+              Individual messages to {eligible.length} eligible guest{eligible.length !== 1 ? "s" : ""}. Each person gets a private text — no group chat.
             </p>
-            <div style={{ fontSize: 11, color: P.dim, margin: "0 0 12px" }}>
-              {eligible.map((g) => g.name).join(", ")}
+
+            {/* Message preview */}
+            <div style={{ background: "rgba(255,255,255,0.03)", borderRadius: 9, border: `1px solid ${P.border}`, padding: 12, fontFamily: F.mono, fontSize: 11, lineHeight: 1.5, whiteSpace: "pre-wrap", color: P.muted, marginBottom: 14, maxHeight: 120, overflow: "auto" }}>
+              {getBlastMsg(blastTarget, "[Name]")}
             </div>
-            <div style={{ background: "rgba(255,255,255,0.03)", borderRadius: 9, border: `1px solid ${P.border}`, padding: 12, fontFamily: F.mono, fontSize: 12, lineHeight: 1.6, whiteSpace: "pre-wrap", color: P.muted, marginBottom: 12, maxHeight: 160, overflow: "auto" }}>
-              {getBlastMsg(blastTarget)}
+
+            {/* Copy generic version */}
+            <Btn onClick={() => {
+              navigator.clipboard.writeText(getGenericBlastMsg(blastTarget));
+              setCopied(true); setTimeout(() => setCopied(false), 1800);
+              markBlasted();
+            }} style={{ width: "100%", marginBottom: 14 }}>
+              <Icon type={copied ? "check" : "copy"} size={13} /> {copied ? "Copied!" : "Copy Generic Message"}
+            </Btn>
+
+            {/* Individual send list */}
+            <div style={{ fontSize: 11, fontWeight: 700, color: P.dim, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 8 }}>
+              Send individually
             </div>
-            <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-              <Btn onClick={() => {
-                navigator.clipboard.writeText(getBlastMsg(blastTarget));
-                setCopied(true); setTimeout(() => setCopied(false), 1800);
-                setState((s) => ({ ...s, concerts: s.concerts.map((c) => c.id === blastTarget.id ? { ...c, blasted: true } : c) }));
-              }} style={{ flex: 1 }}>
-                <Icon type={copied ? "check" : "copy"} size={13} /> {copied ? "Copied!" : "Copy"}
-              </Btn>
-              <Btn href={getSmsUrl(blastTarget)} onClick={() => setState((s) => ({ ...s, concerts: s.concerts.map((c) => c.id === blastTarget.id ? { ...c, blasted: true } : c) }))} bg={P.hover} color={P.text} border={`1px solid ${P.border}`} style={{ flex: 1 }}>
-                <Icon type="msg" size={13} /> Text Blast
-              </Btn>
-              <Btn href={getEmailUrl(blastTarget)} onClick={() => setState((s) => ({ ...s, concerts: s.concerts.map((c) => c.id === blastTarget.id ? { ...c, blasted: true } : c) }))} bg={P.hover} color={P.text} border={`1px solid ${P.border}`} style={{ flex: 1 }}>
-                <Icon type="mail" size={13} /> Email
-              </Btn>
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              {eligible.map((g) => {
+                const msg = getBlastMsg(blastTarget, g.name);
+                return (
+                  <div key={g.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "rgba(255,255,255,0.025)", borderRadius: 8, border: `1px solid ${P.border}`, padding: "8px 11px" }}>
+                    <div>
+                      <div style={{ fontWeight: 600, fontSize: 13 }}>{g.name}</div>
+                      <div style={{ fontSize: 11, color: P.dim }}>{g.phone || g.email || "No contact"}</div>
+                    </div>
+                    <div style={{ display: "flex", gap: 5 }}>
+                      {g.phone && (
+                        <Btn href={getIndividualSmsUrl(g.phone, msg)} onClick={markBlasted} bg={P.hover} color={P.text} border={`1px solid ${P.border}`} style={{ padding: "4px 9px", fontSize: 11 }}>
+                          <Icon type="msg" size={11} /> Text
+                        </Btn>
+                      )}
+                      {g.email && (
+                        <Btn href={getIndividualEmailUrl(g.email, blastTarget, msg)} onClick={markBlasted} bg={P.hover} color={P.text} border={`1px solid ${P.border}`} style={{ padding: "4px 9px", fontSize: 11 }}>
+                          <Icon type="mail" size={11} /> Email
+                        </Btn>
+                      )}
+                      {!g.phone && !g.email && (
+                        <span style={{ fontSize: 11, color: P.dim, fontStyle: "italic" }}>No contact</span>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
-            <button onClick={() => { setModal(null); setBlastTarget(null); }} style={{ width: "100%", marginTop: 8, padding: 6, borderRadius: 8, border: "none", background: "transparent", color: P.muted, fontFamily: F.body, fontSize: 12, cursor: "pointer" }}>Close</button>
+            <button onClick={() => { setModal(null); setBlastTarget(null); }} style={{ width: "100%", marginTop: 10, padding: 6, borderRadius: 8, border: "none", background: "transparent", color: P.muted, fontFamily: F.body, fontSize: 12, cursor: "pointer" }}>Close</button>
           </Modal>
-        )}
+          );
+        })()}
 
         {modal === "reminders" && reminderTarget && (
           <ReminderCenter concert={reminderTarget} guestById={gById} onClose={() => { setModal(null); setReminderTarget(null); }} />
