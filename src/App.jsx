@@ -5,6 +5,8 @@ const STORE_KEY = "tinydesk_v4";
 const genId = () => Math.random().toString(36).slice(2, 10);
 const fmtDate = (d) => new Date(d + "T12:00:00").toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", year: "numeric" });
 const fmtDateShort = (d) => new Date(d + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" });
+const fmtTime = (t) => { if (!t) return ""; const [h, m] = t.split(":").map(Number); const ampm = h >= 12 ? "PM" : "AM"; const h12 = h % 12 || 12; return m === 0 ? `${h12} ${ampm}` : `${h12}:${String(m).padStart(2, "0")} ${ampm}`; };
+const fmtDateTime = (d, t) => t ? `${fmtDate(d)} at ${fmtTime(t)}` : fmtDate(d);
 
 const load = () => { try { const r = localStorage.getItem(STORE_KEY); return r ? JSON.parse(r) : null; } catch { return null; } };
 const save = (d) => { try { localStorage.setItem(STORE_KEY, JSON.stringify(d)); } catch (e) { console.error(e); } };
@@ -123,10 +125,11 @@ function ReminderCenter({ concert, guestById, onClose }) {
   const [copied, setCopied] = useState({});
 
   const mkMsg = (name, role, timing) => {
-    if (role === "confirmed" && timing === "day-before") return `Hey ${name}! 🎵 Reminder — you're confirmed for the ${concert.artist} Tiny Desk concert tomorrow (${fmtDate(concert.date)}). Details to follow in the morning!`;
-    if (role === "confirmed" && timing === "morning") return `Good morning ${name}! 🎶 Today's the day — ${concert.artist} at the Tiny Desk! Please arrive by the designated time. See you there!`;
-    if (role === "alternate" && timing === "day-before") return `Hey ${name}! Heads-up — you're the alternate for tomorrow's ${concert.artist} Tiny Desk concert (${fmtDate(concert.date)}). I'll reach out ASAP if a spot opens up. Keep your schedule flexible!`;
-    if (role === "alternate" && timing === "morning") return `Morning ${name}! You're the alternate for today's ${concert.artist} Tiny Desk. I'll text you right away if a spot opens. Fingers crossed! 🤞`;
+    const timeStr = concert.time ? ` at ${fmtTime(concert.time)}` : "";
+    if (role === "confirmed" && timing === "day-before") return `Hey ${name}! 🎵 Reminder — you're confirmed for the ${concert.artist} Tiny Desk concert tomorrow (${fmtDate(concert.date)}${timeStr}). Details to follow in the morning!`;
+    if (role === "confirmed" && timing === "morning") return `Good morning ${name}! 🎶 Today's the day — ${concert.artist} at the Tiny Desk${timeStr}! Please arrive by the designated time. See you there!`;
+    if (role === "alternate" && timing === "day-before") return `Hey ${name}! Heads-up — you're the alternate for tomorrow's ${concert.artist} Tiny Desk concert (${fmtDate(concert.date)}${timeStr}). I'll reach out ASAP if a spot opens up. Keep your schedule flexible!`;
+    if (role === "alternate" && timing === "morning") return `Morning ${name}! You're the alternate for today's ${concert.artist} Tiny Desk${timeStr}. I'll text you right away if a spot opens. Fingers crossed! 🤞`;
     return "";
   };
 
@@ -317,11 +320,11 @@ export default function App() {
   };
 
   // ── Blast (eligible only, individual texts) ──
-  const getBlastMsg = (c, name) => `Hey ${name}! 🎵 Tiny Desk Alert!\n\n${c.artist} is performing at NPR's Tiny Desk on ${fmtDate(c.date)}!\n\nI have 2 guest spots — first come, first served. Text me back to claim yours!\n\nFirst 2 replies get confirmed, #3 is the alternate.`;
-  const getGenericBlastMsg = (c) => `🎵 Tiny Desk Alert!\n\n${c.artist} is performing at NPR's Tiny Desk on ${fmtDate(c.date)}!\n\nI have 2 guest spots — first come, first served. Text me back to claim yours!\n\nFirst 2 replies get confirmed, #3 is the alternate.`;
+  const getBlastMsg = (c, name) => `Hey ${name}! 🎵 Tiny Desk Alert!\n\n${c.artist} is performing at NPR's Tiny Desk on ${fmtDateTime(c.date, c.time)}!\n\nI have 2 guest spots — first come, first served. Text me back to claim yours!\n\nFirst 2 replies get confirmed, #3 is the alternate.`;
+  const getGenericBlastMsg = (c) => `🎵 Tiny Desk Alert!\n\n${c.artist} is performing at NPR's Tiny Desk on ${fmtDateTime(c.date, c.time)}!\n\nI have 2 guest spots — first come, first served. Text me back to claim yours!\n\nFirst 2 replies get confirmed, #3 is the alternate.`;
 
   const getIndividualSmsUrl = (phone, msg) => `sms:${phone}&body=${encodeURIComponent(msg)}`;
-  const getIndividualEmailUrl = (email, c, msg) => `mailto:${email}?subject=${encodeURIComponent(`Tiny Desk: ${c.artist} — ${fmtDate(c.date)}`)}&body=${encodeURIComponent(msg)}`;
+  const getIndividualEmailUrl = (email, c, msg) => `mailto:${email}?subject=${encodeURIComponent(`Tiny Desk: ${c.artist} — ${fmtDateTime(c.date, c.time)}`)}&body=${encodeURIComponent(msg)}`;
 
   // ── Derived ─────────────────────────────────
   const upcoming = state.concerts.filter((c) => c.status === "upcoming").sort((a, b) => new Date(a.date) - new Date(b.date));
@@ -393,7 +396,7 @@ export default function App() {
                     <div>
                       <div style={{ fontFamily: F.display, fontSize: 17, fontWeight: 700, marginBottom: 2 }}>{c.artist}</div>
                       <div style={{ color: P.muted, fontSize: 12, display: "flex", alignItems: "center", gap: 4 }}>
-                        <Icon type="calendar" size={11} /> {fmtDate(c.date)}
+                        <Icon type="calendar" size={11} /> {fmtDateTime(c.date, c.time)}
                       </div>
                     </div>
                     <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
@@ -416,7 +419,7 @@ export default function App() {
                   <h2 style={{ fontFamily: F.display, fontSize: 16, fontWeight: 700, margin: "0 0 10px", opacity: 0.4 }}>Past</h2>
                   {completed.map((c) => (
                     <div key={c.id} style={{ background: P.surface, border: `1px solid ${P.border}`, borderRadius: 10, padding: "10px 14px", marginBottom: 5, opacity: 0.4, display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 6 }}>
-                      <span><span style={{ fontFamily: F.display, fontWeight: 600 }}>{c.artist}</span> <span style={{ color: P.muted, fontSize: 11, marginLeft: 6 }}>{fmtDate(c.date)}</span></span>
+                      <span><span style={{ fontFamily: F.display, fontWeight: 600 }}>{c.artist}</span> <span style={{ color: P.muted, fontSize: 11, marginLeft: 6 }}>{fmtDateTime(c.date, c.time)}</span></span>
                       <div style={{ display: "flex", gap: 5, alignItems: "center" }}>
                         {c.slotIds.map((sid) => { const g = gById(sid); return g ? <span key={sid} style={{ fontSize: 11, color: P.muted }}>{g.name}</span> : null; })}
                         <button onClick={(e) => { e.stopPropagation(); removeConcert(c.id); }} style={{ background: "none", border: "none", color: P.dim, cursor: "pointer" }}><Icon type="trash" size={12} /></button>
@@ -437,7 +440,7 @@ export default function App() {
 
               <h2 style={{ fontFamily: F.display, fontSize: "clamp(20px, 5vw, 26px)", fontWeight: 800, margin: "0 0 3px" }}>{detail.artist}</h2>
               <div style={{ color: P.muted, fontSize: 13, display: "flex", alignItems: "center", gap: 5, marginBottom: 18 }}>
-                <Icon type="calendar" size={13} /> {fmtDate(detail.date)}
+                <Icon type="calendar" size={13} /> {fmtDateTime(detail.date, detail.time)}
               </div>
 
               {/* Actions */}
@@ -616,6 +619,7 @@ export default function App() {
         {modal === "addConcert" && <FormModal title="Add Concert" fields={[
           { key: "artist", label: "Artist / Band", required: true },
           { key: "date", label: "Date", type: "date", required: true },
+          { key: "time", label: "Time", type: "time", required: true },
           { key: "notes", label: "Notes" },
         ]} onSubmit={addConcert} onClose={() => setModal(null)} submitLabel="Add Concert" />}
 
