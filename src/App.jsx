@@ -320,8 +320,8 @@ export default function App() {
   };
 
   // ── Blast (eligible only, individual texts) ──
-  const getBlastMsg = (c, name) => `Hey ${name}! 🎵 Tiny Desk Alert!\n\nThere's a Tiny Desk concert on ${fmtDateTime(c.date, c.time)}!\n\nI have 2 guest spots — first come, first served. Text me back to claim yours!\n\nFirst 2 replies get confirmed, #3 is the alternate.`;
-  const getGenericBlastMsg = (c) => `🎵 Tiny Desk Alert!\n\nThere's a Tiny Desk concert on ${fmtDateTime(c.date, c.time)}!\n\nI have 2 guest spots — first come, first served. Text me back to claim yours!\n\nFirst 2 replies get confirmed, #3 is the alternate.`;
+  const getBlastMsg = (c, name) => `Hey ${name}! 🎵 Tiny Desk Alert!\n\nThere's a Tiny Desk concert on ${fmtDateTime(c.date, c.time)} — the artist is a surprise, but I can tell you it's a ${c.genre || "great"} act.\n\nI have 2 guest spots — first come, first served. Text me back to claim yours!\n\nFirst 2 replies get confirmed, #3 is the alternate.`;
+  const getGenericBlastMsg = (c) => `🎵 Tiny Desk Alert!\n\nThere's a Tiny Desk concert on ${fmtDateTime(c.date, c.time)} — the artist is a surprise, but I can tell you it's a ${c.genre || "great"} act.\n\nI have 2 guest spots — first come, first served. Text me back to claim yours!\n\nFirst 2 replies get confirmed, #3 is the alternate.`;
 
   const getIndividualSmsUrl = (phone, msg) => `sms:${phone}&body=${encodeURIComponent(msg)}`;
   const getIndividualEmailUrl = (email, c, msg) => `mailto:${email}?subject=${encodeURIComponent(`Tiny Desk Concert — ${fmtDateTime(c.date, c.time)}`)}&body=${encodeURIComponent(msg)}`;
@@ -397,6 +397,7 @@ export default function App() {
                       <div style={{ fontFamily: F.display, fontSize: 17, fontWeight: 700, marginBottom: 2 }}>Tiny Desk Concert</div>
                       <div style={{ color: P.muted, fontSize: 12, display: "flex", alignItems: "center", gap: 4 }}>
                         <Icon type="calendar" size={11} /> {fmtDateTime(c.date, c.time)}
+                        {c.genre && <span style={{ marginLeft: 4 }}>· {c.genre}</span>}
                       </div>
                     </div>
                     <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
@@ -441,6 +442,7 @@ export default function App() {
               <h2 style={{ fontFamily: F.display, fontSize: "clamp(20px, 5vw, 26px)", fontWeight: 800, margin: "0 0 3px" }}>Tiny Desk Concert</h2>
               <div style={{ color: P.muted, fontSize: 13, display: "flex", alignItems: "center", gap: 5, marginBottom: 18 }}>
                 <Icon type="calendar" size={13} /> {fmtDateTime(detail.date, detail.time)}
+                {detail.genre && <span style={{ marginLeft: 2 }}>· {detail.genre}</span>}
               </div>
 
               {/* Actions */}
@@ -619,6 +621,7 @@ export default function App() {
         {modal === "addConcert" && <FormModal title="Add Concert" fields={[
           { key: "date", label: "Date", type: "date", required: true },
           { key: "time", label: "Time", type: "time", required: true },
+          { key: "genre", label: "Genre (e.g. alt rock, hip-hop, R&B)", required: true },
           { key: "notes", label: "Notes" },
         ]} onSubmit={addConcert} onClose={() => setModal(null)} submitLabel="Add Concert" />}
 
